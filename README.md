@@ -21,3 +21,5 @@ Argo 固定隧道：
 Python 环境：
 - 需要 Python 3.8+（推荐 3.10+）
 - 依赖仅标准库，equirements.txt 为空
+
+感谢 yinmmhh 启发
