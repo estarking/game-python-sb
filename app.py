@@ -28,8 +28,8 @@ PUBLIC_PORTS_OVERRIDE = ""
 # - ARGO_TOKEN: fixed tunnel token; empty means Quick Tunnel.
 # - ARGO_DOMAIN: your fixed tunnel domain (required to emit Argo node in subscription).
 # - ARGO_PORT: local port cloudflared forwards to (default 8081).
-ARGO_TOKEN = os.environ.get("ARGO_TOKEN", "eyJhIjoiODljYTViOGYwNTQ3YTQyOWQzN2NlNDE3NzFhMDI1MGIiLCJ0IjoiZGFlOTc3NTctYWNhYi00MjQ3LTgzMDAtZDAzYWU2YTIwNzU4IiwicyI6Ik5HSmlZbVF5TkRndE4ySmtZeTAwWkRFNExUa3lNVFF0TnpBM01ETm1OR1k1TTJFNCJ9").strip()
-ARGO_DOMAIN_OVERRIDE = os.environ.get("ARGO_DOMAIN", "altare.ggkkk.ggff.net").strip()
+ARGO_TOKEN = os.environ.get("ARGO_TOKEN", "").strip()
+ARGO_DOMAIN_OVERRIDE = os.environ.get("ARGO_DOMAIN", "").strip()
 ARGO_PORT = int(os.environ.get("ARGO_PORT", "8081"))
 
 CF_DOMAINS = [
