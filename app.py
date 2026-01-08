@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 import json
 import os
 import random
@@ -18,16 +18,18 @@ from urllib.error import URLError
 # Single-port UDP choice: "hy2" (default) or "tuic"
 SINGLE_PORT_UDP = "hy2"
 
-# Default ports when SERVER_PORT is not set (space-separated).
-# Example: "443" for single-port, or "443 8443" for multi-port.
-DEFAULT_PORTS = ""
+# Override public host/IP and ports here (leave empty to auto-detect).
+# Example: PUBLIC_HOST_OVERRIDE = "example.com"
+# Example: PUBLIC_PORTS_OVERRIDE = "443 8443"
+PUBLIC_HOST_OVERRIDE = ""
+PUBLIC_PORTS_OVERRIDE = ""
 
 # Argo settings:
 # - ARGO_TOKEN: fixed tunnel token; empty means Quick Tunnel.
 # - ARGO_DOMAIN: your fixed tunnel domain (required to emit Argo node in subscription).
 # - ARGO_PORT: local port cloudflared forwards to (default 8081).
-ARGO_TOKEN = os.environ.get("ARGO_TOKEN", "").strip()
-ARGO_DOMAIN_OVERRIDE = os.environ.get("ARGO_DOMAIN", "").strip()
+ARGO_TOKEN = os.environ.get("ARGO_TOKEN", "eyJhIjoiODljYTViOGYwNTQ3YTQyOWQzN2NlNDE3NzFhMDI1MGIiLCJ0IjoiZGFlOTc3NTctYWNhYi00MjQ3LTgzMDAtZDAzYWU2YTIwNzU4IiwicyI6Ik5HSmlZbVF5TkRndE4ySmtZeTAwWkRFNExUa3lNVFF0TnpBM01ETm1OR1k1TTJFNCJ9").strip()
+ARGO_DOMAIN_OVERRIDE = os.environ.get("ARGO_DOMAIN", "altare.ggkkk.ggff.net").strip()
 ARGO_PORT = int(os.environ.get("ARGO_PORT", "8081"))
 
 CF_DOMAINS = [
@@ -72,25 +74,22 @@ def select_random_cf_domain():
     return CF_DOMAINS[0]
 
 
-# ================== Public IP ==================
-print("[network] fetching public IP...")
-PUBLIC_IP = fetch_text("https://ipv4.ip.sb", timeout=5) or fetch_text("https://api.ipify.org", timeout=5)
-if not PUBLIC_IP:
-    print("[error] unable to get public IP")
-    sys.exit(1)
-print(f"[network] public IP: {PUBLIC_IP}")
-
 # ================== CF preferred domain ==================
 print("[CF] testing...")
 BEST_CF_DOMAIN = select_random_cf_domain()
 print(f"[CF] {BEST_CF_DOMAIN}")
 
 # ================== Ports ==================
-PORTS_STRING = os.environ.get("SERVER_PORT", "").strip() or DEFAULT_PORTS
+PORTS_STRING = (
+    PUBLIC_PORTS_OVERRIDE.strip()
+    or os.environ.get("PUBLIC_PORTS", "").strip()
+    or os.environ.get("SERVER_PORT", "").strip()
+    or os.environ.get("PORT", "").strip()
+)
 AVAILABLE_PORTS = PORTS_STRING.split() if PORTS_STRING else []
 PORT_COUNT = len(AVAILABLE_PORTS)
 if PORT_COUNT == 0:
-    print("[error] no ports found; set SERVER_PORT, e.g. 'SERVER_PORT=443'")
+    print("[error] no ports found; set PUBLIC_PORTS_OVERRIDE or env SERVER_PORT/PUBLIC_PORTS/PORT")
     sys.exit(1)
 print(f"[port] found {PORT_COUNT}: {' '.join(AVAILABLE_PORTS)}")
 
@@ -111,6 +110,18 @@ else:
     REALITY_PORT = AVAILABLE_PORTS[0]
     HTTP_PORT = AVAILABLE_PORTS[1]
     SINGLE_PORT_MODE = False
+
+# ================== Public IP ==================
+if PUBLIC_HOST_OVERRIDE:
+    PUBLIC_HOST = PUBLIC_HOST_OVERRIDE
+    print(f"[network] using public host: {PUBLIC_HOST}")
+else:
+    print("[network] fetching public IP...")
+    PUBLIC_HOST = fetch_text("https://ipv4.ip.sb", timeout=5) or fetch_text("https://api.ipify.org", timeout=5)
+    if not PUBLIC_HOST:
+        print("[error] unable to get public IP")
+        sys.exit(1)
+    print(f"[network] public IP: {PUBLIC_HOST}")
 
 # ================== UUID ==================
 UUID_FILE = FILE_PATH / "uuid.txt"
@@ -243,15 +254,15 @@ def generate_sub(argo_domain):
     lines = []
     if TUIC_PORT:
         lines.append(
-            f"tuic://{UUID}:admin@{PUBLIC_IP}:{TUIC_PORT}?sni=www.bing.com&alpn=h3&congestion_control=bbr&allowInsecure=1#TUIC-{isp}"
+            f"tuic://{UUID}:admin@{PUBLIC_HOST}:{TUIC_PORT}?sni=www.bing.com&alpn=h3&congestion_control=bbr&allowInsecure=1#TUIC-{isp}"
         )
     if HY2_PORT:
         lines.append(
-            f"hysteria2://{UUID}@{PUBLIC_IP}:{HY2_PORT}/?sni=www.bing.com&insecure=1#Hysteria2-{isp}"
+            f"hysteria2://{UUID}@{PUBLIC_HOST}:{HY2_PORT}/?sni=www.bing.com&insecure=1#Hysteria2-{isp}"
         )
     if REALITY_PORT:
         lines.append(
-            f"vless://{UUID}@{PUBLIC_IP}:{REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.nazhumi.com&fp=chrome&pbk={public_key}&type=tcp#Reality-{isp}"
+            f"vless://{UUID}@{PUBLIC_HOST}:{REALITY_PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=www.nazhumi.com&fp=chrome&pbk={public_key}&type=tcp#Reality-{isp}"
         )
     if argo_domain:
         lines.append(
@@ -458,7 +469,7 @@ else:
 
 # ================== Subscription ==================
 generate_sub(ARGO_DOMAIN)
-SUB_URL = f"http://{PUBLIC_IP}:{HTTP_PORT}/sub"
+SUB_URL = f"http://{PUBLIC_HOST}:{HTTP_PORT}/sub"
 
 print("\n===================================================")
 if SINGLE_PORT_MODE:
@@ -466,17 +477,17 @@ if SINGLE_PORT_MODE:
     print(f"mode: single port ({mode} + Argo)")
     print("\nproxy nodes:")
     if HY2_PORT:
-        print(f"  - HY2 (UDP): {PUBLIC_IP}:{HY2_PORT}")
+        print(f"  - HY2 (UDP): {PUBLIC_HOST}:{HY2_PORT}")
     if TUIC_PORT:
-        print(f"  - TUIC (UDP): {PUBLIC_IP}:{TUIC_PORT}")
+        print(f"  - TUIC (UDP): {PUBLIC_HOST}:{TUIC_PORT}")
     if ARGO_DOMAIN:
         print(f"  - Argo (WS): {ARGO_DOMAIN}")
 else:
     print("mode: multi port (TUIC + HY2 + Reality + Argo)")
     print("\nproxy nodes:")
-    print(f"  - TUIC (UDP): {PUBLIC_IP}:{TUIC_PORT}")
-    print(f"  - HY2 (UDP): {PUBLIC_IP}:{HY2_PORT}")
-    print(f"  - Reality (TCP): {PUBLIC_IP}:{REALITY_PORT}")
+    print(f"  - TUIC (UDP): {PUBLIC_HOST}:{TUIC_PORT}")
+    print(f"  - HY2 (UDP): {PUBLIC_HOST}:{HY2_PORT}")
+    print(f"  - Reality (TCP): {PUBLIC_HOST}:{REALITY_PORT}")
     if ARGO_DOMAIN:
         print(f"  - Argo (WS): {ARGO_DOMAIN}")
 
