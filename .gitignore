@@ -1,0 +1,8 @@
+﻿# Runtime artifacts
+.npm/
+*.log
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
